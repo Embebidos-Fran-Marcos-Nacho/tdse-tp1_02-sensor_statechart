@@ -1,0 +1,126 @@
+Paso TP1-00-03: Modelos de comportamiento para los módulos del sistema
+1. Modelo Sensor (escrutar):
+Este modelo representa el comportamiento de un sensor binario (ej: botón o interruptor). Su función es detectar cambios físicos (ej: pulsación) y generar señales eléctricas limpias (sin rebotes) para el sistema.
+
+    Estados: Inactivo, EsperaDebounce (antirrebote), Activo.
+
+    Eventos: Señal física de entrada (ej: botón presionado/soltado), timeout del timer de debounce.
+
+    Acciones: Enviar señal al sistema (ej: EV_SYS_BTN_PRESSED).
+
+2. Modelo System (procesar):
+Este modelo define la lógica de control del sistema. Recibe señales de los sensores, toma decisiones y envía comandos a los actuadores.
+
+    Estados: Reposo, ValidandoAcceso, AccesoPermitido, AccesoDenegado, etc.
+
+    Eventos: Señales de sensores (ej: EV_SYS_BTN_PRESSED), timeouts, señales de otros subsistemas.
+
+    Acciones: Activar timer, enviar señal a actuador (ej: EV_ACT_LED_ON), registrar evento.
+
+3. Modelo Actuator (actuar):
+Este modelo controla un actuador (ej: LED, motor, barrera). Responde a comandos del sistema y maneja el comportamiento del actuador (ej: encendido, apagado, parpadeo).
+
+    Estados: Apagado, Encendido, Parpadeando, etc.
+
+    Eventos: Señales del sistema (ej: EV_ACT_LED_ON), timeouts.
+
+    Acciones: Encender LED, apagar LED, iniciar parpadeo.
+
+
+Paso TP1-00-04: Eventos y Acciones del Modelo Sensor (un solo botón)
+
+Eventos:
+
+    EV_BTN_PRESSED: Evento que indica que el botón fue físicamente presionado (señal en bajo o alto dependiendo de la configuración hardware).
+
+    EV_BTN_RELEASED: Evento que indica que el botón fue físicamente liberado.
+
+    tick: Evento de timer periódico utilizado para el antirrebote (debouncing). Se genera cada cierto intervalo de tiempo (ej: 10ms a 50ms).
+    
+
+Acciones:
+
+    op_emit_pressed: Acción que emite la señal EV_SYS_BTN_PRESSED hacia el sistema cuando se confirma que el botón fue presionado de manera válida (sin rebote).
+
+    op_emit_released: Acción que emite la señal EV_SYS_BTN_RELEASED hacia el sistema cuando se confirma que el botón fue liberado de manera válida (sin rebote).
+
+    op_start_timer: Acción que inicia el timer de debounce con un delay predefinido (ej: 50ms).
+
+    op_stop_timer: Acción que detiene el timer de debounce.
+
+
+Paso TP1-00-05: Tabla de Estados y Transiciones para el Modelo Sensor (un botón Normalmente abierto)
+
+Current State	Event	[Guard]	Next State	Actions
+ST_BTN_PRESSED	EV_BTN_RELEASED	No hay	ST_BTN_FALLING	Tick=50
+ST_BTN_UNPRESSED	EV_BTN_PRESSED	No hay	ST_BTN_RISING	Tick=51
+ST_BTN_RISING	EV_BTN_PRESSED	Tick==0	ST_BTN_PRESSED	avisar
+ST_BTN_FALLING	EV_BTN_PRESSED	Tick==0	ST_BTN_PRESSED	no cambió
+ST_BTN_RISING	EV_BTN_RELEASED	Tick==0	ST_BTN_UNPRESSED	no cambió
+ST_BTN_FALLING	EV_BTN_RELEASED	Tick==0	ST_BTN_UNPRESSED	avisar
+ST_BTN_RISING	EV_BTN_PRESSED	Tick>0	ST_BTN_RISING	tick--
+ST_BTN_FALLING	EV_BTN_PRESSED	Tick>0	ST_BTN_FALLING	tick--
+
+
+Esto se entiende mucho mejor en el inciso de Itemis o el excel, pero la idea es que si el botón es presionadoo se suelta, pasa a su estado de transición, y se hace el debouncing. 
+
+Paso TP1-00-06: Eventos y Acciones del Modelo System (procesar)
+
+Eventos de Entrada (desde Sensores):
+
+    EV_SYS_BTN_ENTRY_PRESSED: Señal recibida cuando se presiona el botón de solicitud de entrada al estacionamiento. (con el debouncing ya hecho)
+
+    EV_SYS_BTN_ENTRY_RELEASED: Señal recibida cuando se libera el botón de entrada.
+
+    EV_SYS_BTN_EXIT_PRESSED: Señal recibida cuando se presiona el botón de solicitud de salida del estacionamiento.
+
+    EV_SYS_BTN_EXIT_RELEASED: Señal recibida cuando se libera el botón de salida.
+
+    tick: Evento de timer periódico para gestionar timeouts del sistema.
+
+Acciones (hacia Actuadores):
+
+    op_activate_entry_barrier: Acción que envía la señal EV_ACT_ENTRY_OPEN para activar la apertura de la barrera de entrada.
+
+    op_deactivate_entry_barrier: Acción que envía la señal EV_ACT_ENTRY_CLOSE para desactivar/cerrar la barrera de entrada.
+
+    op_activate_exit_barrier: Acción que envía la señal EV_ACT_EXIT_OPEN para activar la apertura de la barrera de salida.
+
+    op_deactivate_exit_barrier: Acción que envía la señal EV_ACT_EXIT_CLOSE para desactivar/cerrar la barrera de salida.
+
+    op_activate_led_green: Acción que envía la señal EV_ACT_LED_GREEN_ON para encender el LED verde (acceso permitido).
+
+    op_deactivate_led_green: Acción que envía la señal EV_ACT_LED_GREEN_OFF para apagar el LED verde.
+
+    op_activate_led_red: Acción que envía la señal EV_ACT_LED_RED_ON para encender el LED rojo (acceso denegado).
+
+    op_deactivate_led_red: Acción que envía la señal EV_ACT_LED_RED_OFF para apagar el LED rojo.
+
+    op_start_timer: Acción que inicia un timer para controlar el tiempo de apertura de barreras o timeouts del sistema.
+
+    op_stop_timer: Acción que detiene el timer del sistema.
+
+Estados del System (ejemplos):
+
+    ST_SYS_IDLE: Sistema en reposo, esperando solicitudes.
+
+    ST_SYS_ENTRY_GRANTED: Acceso de entrada permitido, barrera abierta.
+
+    ST_SYS_ENTRY_DENIED: Acceso de entrada denegado.
+
+    ST_SYS_EXIT_GRANTED: Acceso de salida permitido, barrera abierta.
+
+    ST_SYS_EXIT_DENIED: Acceso de salida denegado.
+
+    ST_SYS_WAIT_TIMEOUT: Esperando que expire el timer de apertura de barrera.
+
+
+
+
+
+
+
+
+
+
+
