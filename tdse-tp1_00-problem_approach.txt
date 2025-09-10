@@ -78,15 +78,23 @@ Eventos de Entrada (desde Sensores):
 
     tick: Evento de timer periódico para gestionar timeouts del sistema.
 
+    EV_SYS_LOOP_ON: señal recibida de que hay un auto arriba del loop
+
+    EV_SYS_LOOP_OFF : no hay auto arriba del loop
+
+    EV_SYS_IR_ON: señal recibida de que hay un auto en el sensor de IR
+
+    EV_SYS_IR_OFF : no hay auto detectado por IR
+
+    EV_SYS_FC_ACTIVE: se tocó algun final de carrera
+
+    EV_SYS_FC_INACTIVE: no hay finales de carera activos
+
 Acciones (hacia Actuadores):
 
     op_activate_entry_barrier: Acción que envía la señal EV_ACT_ENTRY_OPEN para activar la apertura de la barrera de entrada.
 
     op_deactivate_entry_barrier: Acción que envía la señal EV_ACT_ENTRY_CLOSE para desactivar/cerrar la barrera de entrada.
-
-    op_activate_exit_barrier: Acción que envía la señal EV_ACT_EXIT_OPEN para activar la apertura de la barrera de salida.
-
-    op_deactivate_exit_barrier: Acción que envía la señal EV_ACT_EXIT_CLOSE para desactivar/cerrar la barrera de salida.
 
     op_activate_led_green: Acción que envía la señal EV_ACT_LED_GREEN_ON para encender el LED verde (acceso permitido).
 
@@ -100,26 +108,34 @@ Acciones (hacia Actuadores):
 
     op_stop_timer: Acción que detiene el timer del sistema.
 
-Estados del System (ejemplos):
+Estados del System:
 
     ST_SYS_IDLE: Sistema en reposo, esperando solicitudes.
 
-    ST_SYS_ENTRY_GRANTED: Acceso de entrada permitido, barrera abierta.
+    ST_SYS_RISING: barrera subiendo
 
-    ST_SYS_ENTRY_DENIED: Acceso de entrada denegado.
+    ST_SYS_FALLING: barrera bajando
 
-    ST_SYS_EXIT_GRANTED: Acceso de salida permitido, barrera abierta.
-
-    ST_SYS_EXIT_DENIED: Acceso de salida denegado.
+    ST_SYS_OPEN: barrera abierta.
 
     ST_SYS_WAIT_TIMEOUT: Esperando que expire el timer de apertura de barrera.
 
+    ST_SYS_
 
 
 
 
+La idea es que se abre la barrera solo cuando tenemos un auto arriba del loop y se toca el botón.
+La barrera abre hasta el final de carrera. Luego se queda abierto si hay un auto pasando y si el timer
+no se venció 
 
 
+Current State	Event	[Guard]	Next State	Actions
+ST_SYS_IDLE	EV_SYS_BTN_ENTRY_PRESSED	EV_SYS_LOOP_ON	ST_SYS_RISING: 	op_activate_entry_barrier: 
+ST_SYS_RISING	EV_SYS_FC_ACTIVE		ST_SYS_OPEN	op_activate_led_green y arrancar timer
+ST_SYS_OPEN	EV_SYS_IR_ON		ST_SYS_OPEN	-
+ST_SYS_OPEN	EV_SYS_IR_OFF	pasó timer	ST_SYS_FALLING	op_deactivate_entry_barrier
+ST_SYS_FALLING			ST_SYS_IDLE	
 
 
 
